@@ -18,14 +18,14 @@ func main() {
 	myApp := app.New()
 	w := myApp.NewWindow("Fun")
 	w.Resize(fyne.NewSize(300, 600))
-	w.SetFixedSize(true)
-
+	w.SetFixedSize(false)
+	w.CenterOnScreen()
 	cont := container.NewWithoutLayout()
 
 	button := widget.NewButton("Start the fun !", func() {
 		c := canvas.NewCircle(randomColor())
 		c.StrokeWidth = 2
-		c.Resize(fyne.NewSize(50, 50))
+		c.Resize(fyne.NewSize(rand.Float32()*50.0, rand.Float32()*50.0))
 		cont.Add(c)
 
 		xStart, yStart := randomPosition()
