@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
+	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -49,9 +50,19 @@ func main() {
 		go spiralMotion(c, xStart, yStart, speed, w)
 	})
 
-	cont.Add(button)
-	button.Resize(fyne.NewSize(200, 50))
+	buttonClear := widget.NewButton("Kill !", func() {
+		if (len(cont.Objects)) == 1 {
+			myApp.Quit()
+			os.Exit(0)
+		}
+		cont.Remove(cont.Objects[len(cont.Objects)-1])
+	})
+	cont.Add(buttonClear)
 
+	cont.Add(button)
+	button.Resize(fyne.NewSize(150, 50))
+	buttonClear.Resize(fyne.NewSize(100, 50))
+	buttonClear.Move(fyne.NewPos(155, 0))
 	w.SetContent(cont)
 	w.ShowAndRun()
 }
@@ -79,24 +90,25 @@ func spiralMotion(c *canvas.Circle, xStart, yStart, speed float64, w fyne.Window
 	circleSize := c.Size()
 	radius := circleSize.Width / 2
 
+	rebound := 5.0
 	for {
 		r := a + 10*theta
 		newX := r*math.Cos(theta) + xMid
 		newY := r*math.Sin(theta) + yMid
 
 		if newX-float64(radius) <= 0 {
-			newX = float64(radius)
+			newX = float64(radius) + rebound
 			direction = -direction
 		} else if newX+float64(radius) >= float64(xMax) {
-			newX = float64(xMax) - float64(radius)
+			newX = float64(xMax) - float64(radius) - rebound
 			direction = -direction
 		}
 
 		if newY-float64(radius) <= 0 {
-			newY = float64(radius)
+			newY = float64(radius) + rebound
 			direction = -direction
 		} else if newY+float64(radius) >= float64(yMax) {
-			newY = float64(yMax) - float64(radius)
+			newY = float64(yMax) - float64(radius) - rebound
 			direction = -direction
 		}
 
@@ -108,7 +120,7 @@ func spiralMotion(c *canvas.Circle, xStart, yStart, speed float64, w fyne.Window
 }
 
 func randomPosition() (float64, float64) {
-	return rand.Float64() * float64(xMax-50), rand.Float64() * float64(yMax-100)
+	return rand.Float64() * float64(xMax), rand.Float64() * float64(yMax)
 }
 
 func randomSpeed() float64 {
