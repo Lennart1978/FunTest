@@ -13,6 +13,19 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+var xMax, yMax float32
+
+func checkWindowSize(w fyne.Window) {
+	for {
+		size := w.Canvas().Size()
+		if xMax != size.Width || yMax != size.Height {
+			xMax = size.Width
+			yMax = size.Height
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func main() {
 	rand.NewSource(time.Now().UnixNano())
 	myApp := app.New()
@@ -20,7 +33,10 @@ func main() {
 	w.Resize(fyne.NewSize(300, 600))
 	w.SetFixedSize(false)
 	w.CenterOnScreen()
+
 	cont := container.NewWithoutLayout()
+
+	go checkWindowSize(w)
 
 	button := widget.NewButton("Start the fun !", func() {
 		c := canvas.NewCircle(randomColor())
@@ -30,7 +46,7 @@ func main() {
 
 		xStart, yStart := randomPosition()
 		speed := randomSpeed()
-		go spiralMotion(c, xStart, yStart, speed)
+		go spiralMotion(c, xStart, yStart, speed, w)
 	})
 
 	cont.Add(button)
@@ -49,23 +65,42 @@ func randomColor() color.Color {
 	}
 }
 
-func spiralMotion(c *canvas.Circle, xStart, yStart, speed float64) {
+func spiralMotion(c *canvas.Circle, xStart, yStart, speed float64, w fyne.Window) {
+	winSize := w.Canvas().Size()
+	xMax = winSize.Width
+	yMax = winSize.Height
 	var theta float64
 	var direction float64 = 1
-	xMid, yMid := 150.0, 300.0
+	xMid, yMid := float64(xMax/2), float64(yMax/2)
 
 	theta = math.Atan2(yStart-yMid, xStart-xMid)
 	a := math.Sqrt((xStart-xMid)*(xStart-xMid)+(yStart-yMid)*(yStart-yMid)) - 10*theta
 
+	circleSize := c.Size()
+	radius := circleSize.Width / 2
+
 	for {
 		r := a + 10*theta
-		x := r*math.Cos(theta) + xMid
-		y := r*math.Sin(theta) + yMid
-		c.Move(fyne.NewPos(float32(x), float32(y)))
+		newX := r*math.Cos(theta) + xMid
+		newY := r*math.Sin(theta) + yMid
 
-		if x-25 <= 0 || x+25 >= 300 || y-25 <= 0 || y+25 >= 600 {
+		if newX-float64(radius) <= 0 {
+			newX = float64(radius)
+			direction = -direction
+		} else if newX+float64(radius) >= float64(xMax) {
+			newX = float64(xMax) - float64(radius)
 			direction = -direction
 		}
+
+		if newY-float64(radius) <= 0 {
+			newY = float64(radius)
+			direction = -direction
+		} else if newY+float64(radius) >= float64(yMax) {
+			newY = float64(yMax) - float64(radius)
+			direction = -direction
+		}
+
+		c.Move(fyne.NewPos(float32(newX), float32(newY)))
 		theta += speed * direction
 
 		time.Sleep(time.Millisecond)
@@ -73,7 +108,7 @@ func spiralMotion(c *canvas.Circle, xStart, yStart, speed float64) {
 }
 
 func randomPosition() (float64, float64) {
-	return rand.Float64()*200 + 50, rand.Float64()*400 + 100
+	return rand.Float64() * float64(xMax-50), rand.Float64() * float64(yMax-100)
 }
 
 func randomSpeed() float64 {
