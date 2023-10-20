@@ -2,6 +2,8 @@ package main
 
 import (
 	"image/color"
+	"math"
+	"math/rand"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -12,68 +14,68 @@ import (
 )
 
 func main() {
+	rand.NewSource(time.Now().UnixNano())
 	myApp := app.New()
 	w := myApp.NewWindow("Fun")
 	w.Resize(fyne.NewSize(300, 600))
 	w.SetFixedSize(true)
-	c := canvas.NewCircle(color.RGBA{255, 0, 0, 255})
-	c.StrokeWidth = 2
-	c.Resize(fyne.NewSize(50, 50))
 
-	type direct struct {
-		left, right, up, down bool
-	}
-	var direction direct
+	cont := container.NewWithoutLayout()
 
 	button := widget.NewButton("Start the fun !", func() {
-		go func() {
-			var x, y float32
-			direction.left = false
-			direction.right = true
-			direction.up = false
-			direction.down = true
+		c := canvas.NewCircle(randomColor())
+		c.StrokeWidth = 2
+		c.Resize(fyne.NewSize(50, 50))
+		cont.Add(c)
 
-			x = 150.0
-			y = 300.0
-			for {
-				c.Move(fyne.NewPos(x, y))
-				if direction.left {
-					x = x - 1.0
-				}
-				if direction.right {
-					x = x + 1.0
-				}
-				if direction.up {
-					y = y - 1.0
-				}
-				if direction.down {
-					y = y + 1.0
-				}
-				if x < 0 {
-					direction.left = false
-					direction.right = true
-				}
-				if x > 300 {
-					direction.right = false
-					direction.left = true
-				}
-				if y <= 0 {
-					direction.up = false
-					direction.down = true
-				}
-				if y > 600 {
-					direction.down = false
-					direction.up = true
-				}
-				time.Sleep(time.Millisecond)
-			}
-		}()
+		xStart, yStart := randomPosition()
+		speed := randomSpeed()
+		go spiralMotion(c, xStart, yStart, speed)
 	})
-	cont := container.NewWithoutLayout(c, button)
+
+	cont.Add(button)
 	button.Resize(fyne.NewSize(200, 50))
-	c.Move(fyne.NewPos(100, 100))
 
 	w.SetContent(cont)
-
 	w.ShowAndRun()
+}
+
+func randomColor() color.Color {
+	return color.RGBA{
+		R: uint8(rand.Intn(256)),
+		G: uint8(rand.Intn(256)),
+		B: uint8(rand.Intn(256)),
+		A: 255,
+	}
+}
+
+func spiralMotion(c *canvas.Circle, xStart, yStart, speed float64) {
+	var theta float64
+	var direction float64 = 1
+	xMid, yMid := 150.0, 300.0
+
+	theta = math.Atan2(yStart-yMid, xStart-xMid)
+	a := math.Sqrt((xStart-xMid)*(xStart-xMid)+(yStart-yMid)*(yStart-yMid)) - 10*theta
+
+	for {
+		r := a + 10*theta
+		x := r*math.Cos(theta) + xMid
+		y := r*math.Sin(theta) + yMid
+		c.Move(fyne.NewPos(float32(x), float32(y)))
+
+		if x-25 <= 0 || x+25 >= 300 || y-25 <= 0 || y+25 >= 600 {
+			direction = -direction
+		}
+		theta += speed * direction
+
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func randomPosition() (float64, float64) {
+	return rand.Float64()*200 + 50, rand.Float64()*400 + 100
+}
+
+func randomSpeed() float64 {
+	return rand.Float64()*0.01 + 0.005
 }
