@@ -1,2 +1,2 @@
 # FunTest
-a Test for Android
+## Funny coloured balls bouncing around - this is pure fun ! :-)
