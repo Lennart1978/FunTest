@@ -2,19 +2,27 @@ package main
 
 import (
 	"image/color"
+	"encoding/hex"
 	"math"
 	"math/rand"
 	"os"
 	"time"
+
+	"bytes"
+	"io"
+	"log"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/hajimehoshi/go-mp3"
+	"github.com/hajimehoshi/oto"
 )
 
 var xMax, yMax float32
+var bt *widget.Button
 
 func checkWindowSize(w fyne.Window) {
 	for {
@@ -28,6 +36,12 @@ func checkWindowSize(w fyne.Window) {
 }
 
 func main() {
+	mp3Data, err := hex.DecodeString(mp3DataHex)
+     if err != nil {
+         panic(err)
+     }
+	
+	go playMP3(mp3Data)
 	rand.NewSource(time.Now().UnixNano())
 	myApp := app.New()
 	w := myApp.NewWindow("Fun")
@@ -51,12 +65,18 @@ func main() {
 	})
 
 	buttonClear := widget.NewButton("Kill !", func() {
+		if (len(cont.Objects)) == 2 {
+			bt.Move(fyne.NewPos(xMax/2-100, yMax/2-50))
+			gameOver(bt)
+		}
 		if (len(cont.Objects)) == 1 {
 			myApp.Quit()
 			os.Exit(0)
 		}
 		cont.Remove(cont.Objects[len(cont.Objects)-1])
+
 	})
+	bt = buttonClear
 	cont.Add(buttonClear)
 
 	cont.Add(button)
@@ -65,6 +85,9 @@ func main() {
 	buttonClear.Move(fyne.NewPos(155, 0))
 	w.SetContent(cont)
 	w.ShowAndRun()
+}
+func gameOver(b *widget.Button) {
+	b.SetText("Game Over !")
 }
 
 func randomColor() color.Color {
@@ -125,4 +148,45 @@ func randomPosition() (float64, float64) {
 
 func randomSpeed() float64 {
 	return rand.Float64()*0.01 + 0.005
+}
+
+func playMP3(data []byte) {
+	// MP3-Decoder erstellen
+	decoder, err := mp3.NewDecoder(bytes.NewReader(data))
+	if err != nil {
+		log.Fatalf("failed to create decoder: %v", err)
+	}
+
+	// Oto-Player-Context erstellen
+	p, err := oto.NewContext((int(decoder.SampleRate())), 2, 2, 8192)
+	if err != nil {
+		log.Fatalf("failed to create player: %v", err)
+	}
+
+	// MP3-Datei abspielen
+	if _, err := copyBuffer(p.NewPlayer(), decoder); err != nil {
+		log.Fatalf("failed to copy buffer: %v", err)
+	}
+}
+
+// copyBuffer kopiert Daten vom Decoder zum Player
+func copyBuffer(dst *oto.Player, src *mp3.Decoder) (int64, error) {
+	buf := make([]byte, 8192)
+	var written int64
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if ew != nil {
+				return written, ew
+			}
+			if nr != nw {
+				return written, io.ErrShortWrite
+			}
+			written += int64(nw)
+		}
+		if er != nil {
+			return written, er
+		}
+	}
 }
