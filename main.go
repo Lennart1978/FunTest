@@ -55,9 +55,10 @@ func main() {
 	gradient := canvas.NewRadialGradient(color.Black, randomColor())
 	cont.Add(gradient)
 	gradient.Resize(fyne.NewSize(300, 600))
+
 	go checkWindowSize(w, gradient)
 
-	button := widget.NewButton("Start the fun !", func() {
+	button := widget.NewButton("Spiral !", func() {
 		c := canvas.NewCircle(randomColor())
 		c.StrokeWidth = 2
 		c.Resize(fyne.NewSize(rand.Float32()*50.0, rand.Float32()*50.0))
@@ -66,6 +67,17 @@ func main() {
 		xStart, yStart := randomPosition()
 		speed := randomSpeed()
 		go spiralMotion(c, xStart, yStart, speed, w)
+	})
+
+	buttonAngular := widget.NewButton("Angular !", func() {
+		c := canvas.NewCircle(randomColor())
+		c.StrokeWidth = 2
+		c.Resize(fyne.NewSize(rand.Float32()*50.0, rand.Float32()*50.0))
+		cont.Add(c)
+
+		xStart, yStart := randomPosition()
+		speed := randomSpeed()
+		go angularMotion(c, xStart, yStart, speed, w)
 	})
 
 	buttonFC := widget.NewButton("Full Screen", func() {
@@ -95,10 +107,13 @@ func main() {
 
 	cont.Add(button)
 	button.Resize(fyne.NewSize(150, 50))
+	cont.Add(buttonAngular)
 	buttonClear.Resize(fyne.NewSize(100, 50))
 	buttonClear.Move(fyne.NewPos(155, 0))
 	buttonFC.Resize(fyne.NewSize(100, 50))
 	buttonFC.Move(fyne.NewPos(260, 0))
+	buttonAngular.Resize(fyne.NewSize(100, 50))
+	buttonAngular.Move(fyne.NewPos(365, 0))
 	w.SetContent(cont)
 	w.ShowAndRun()
 }
@@ -112,6 +127,42 @@ func randomColor() color.Color {
 		G: uint8(rand.Intn(256)),
 		B: uint8(rand.Intn(256)),
 		A: 255,
+	}
+}
+
+func angularMotion(c *canvas.Circle, xStart, yStart, speed float64, w fyne.Window) {
+	winSize := w.Canvas().Size()
+	xMax, yMax := float64(winSize.Width), float64(winSize.Height)
+	speed *= 30.0
+	var xSpeed, ySpeed float64 = speed, speed
+	circleSize := c.Size()
+	radius := float64(circleSize.Width / 2)
+
+	rand.NewSource(time.Now().UnixNano())
+
+	for {
+		xStart += xSpeed
+		yStart += ySpeed
+
+		if xStart-radius <= 0 {
+			xStart = radius
+			xSpeed = speed * (1 + rand.Float64()) // Zufällige Geschwindigkeitskomponente in X-Richtung
+		} else if xStart+radius >= xMax {
+			xStart = xMax - radius
+			xSpeed = -speed * (1 + rand.Float64()) // Zufällige Geschwindigkeitskomponente in X-Richtung
+		}
+
+		if yStart-radius <= 0 {
+			yStart = radius
+			ySpeed = speed * (1 + rand.Float64()) // Zufällige Geschwindigkeitskomponente in Y-Richtung
+		} else if yStart+radius >= yMax {
+			yStart = yMax - radius
+			ySpeed = -speed * (1 + rand.Float64()) // Zufällige Geschwindigkeitskomponente in Y-Richtung
+		}
+
+		c.Move(fyne.NewPos(float32(xStart), float32(yStart)))
+
+		time.Sleep(time.Millisecond)
 	}
 }
 
@@ -181,6 +232,7 @@ func playMP3(data []byte) {
 	if _, err := copyBuffer(p.NewPlayer(), decoder); err != nil {
 		log.Fatalf("failed to copy buffer: %v", err)
 	}
+
 }
 
 func copyBuffer(dst *oto.Player, src *mp3.Decoder) (int64, error) {
