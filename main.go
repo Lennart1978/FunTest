@@ -1,8 +1,8 @@
 package main
 
 import (
-	"image/color"
 	"encoding/hex"
+	"image/color"
 	"math"
 	"math/rand"
 	"os"
@@ -24,12 +24,13 @@ import (
 var xMax, yMax float32
 var bt *widget.Button
 
-func checkWindowSize(w fyne.Window) {
+func checkWindowSize(w fyne.Window, c fyne.CanvasObject) {
 	for {
 		size := w.Canvas().Size()
 		if xMax != size.Width || yMax != size.Height {
 			xMax = size.Width
 			yMax = size.Height
+			c.Resize(fyne.NewSize(xMax, yMax))
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -37,21 +38,24 @@ func checkWindowSize(w fyne.Window) {
 
 func main() {
 	mp3Data, err := hex.DecodeString(mp3DataHex)
-     if err != nil {
-         panic(err)
-     }
-	
+	if err != nil {
+		panic(err)
+	}
+
 	go playMP3(mp3Data)
 	rand.NewSource(time.Now().UnixNano())
 	myApp := app.New()
 	w := myApp.NewWindow("Fun")
-	w.Resize(fyne.NewSize(300, 600))
+	//w.Resize(fyne.NewSize(300, 600))
+	w.SetFullScreen(true)
 	w.SetFixedSize(false)
-	w.CenterOnScreen()
 
 	cont := container.NewWithoutLayout()
 
-	go checkWindowSize(w)
+	gradient := canvas.NewRadialGradient(color.Black, randomColor())
+	cont.Add(gradient)
+	gradient.Resize(fyne.NewSize(300, 600))
+	go checkWindowSize(w, gradient)
 
 	button := widget.NewButton("Start the fun !", func() {
 		c := canvas.NewCircle(randomColor())
@@ -64,18 +68,28 @@ func main() {
 		go spiralMotion(c, xStart, yStart, speed, w)
 	})
 
+	buttonFC := widget.NewButton("Full Screen", func() {
+		if w.FullScreen() {
+			w.SetFullScreen(false)
+		} else {
+			w.SetFullScreen(true)
+		}
+	})
+	cont.Add(buttonFC)
+
 	buttonClear := widget.NewButton("Kill !", func() {
-		if (len(cont.Objects)) == 2 {
-			bt.Move(fyne.NewPos(xMax/2-100, yMax/2-50))
+		if (len(cont.Objects)) == 4 {
+			bt.Move(fyne.NewPos(xMax/2-50, yMax/2-25))
 			gameOver(bt)
 		}
-		if (len(cont.Objects)) == 1 {
+		if (len(cont.Objects)) == 3 {
 			myApp.Quit()
 			os.Exit(0)
 		}
 		cont.Remove(cont.Objects[len(cont.Objects)-1])
 
 	})
+
 	bt = buttonClear
 	cont.Add(buttonClear)
 
@@ -83,6 +97,8 @@ func main() {
 	button.Resize(fyne.NewSize(150, 50))
 	buttonClear.Resize(fyne.NewSize(100, 50))
 	buttonClear.Move(fyne.NewPos(155, 0))
+	buttonFC.Resize(fyne.NewSize(100, 50))
+	buttonFC.Move(fyne.NewPos(260, 0))
 	w.SetContent(cont)
 	w.ShowAndRun()
 }
@@ -151,25 +167,22 @@ func randomSpeed() float64 {
 }
 
 func playMP3(data []byte) {
-	// MP3-Decoder erstellen
 	decoder, err := mp3.NewDecoder(bytes.NewReader(data))
 	if err != nil {
 		log.Fatalf("failed to create decoder: %v", err)
 	}
 
-	// Oto-Player-Context erstellen
 	p, err := oto.NewContext((int(decoder.SampleRate())), 2, 2, 8192)
 	if err != nil {
 		log.Fatalf("failed to create player: %v", err)
 	}
+	defer p.Close()
 
-	// MP3-Datei abspielen
 	if _, err := copyBuffer(p.NewPlayer(), decoder); err != nil {
 		log.Fatalf("failed to copy buffer: %v", err)
 	}
 }
 
-// copyBuffer kopiert Daten vom Decoder zum Player
 func copyBuffer(dst *oto.Player, src *mp3.Decoder) (int64, error) {
 	buf := make([]byte, 8192)
 	var written int64
@@ -186,6 +199,9 @@ func copyBuffer(dst *oto.Player, src *mp3.Decoder) (int64, error) {
 			written += int64(nw)
 		}
 		if er != nil {
+			if er == io.EOF {
+				return written, nil
+			}
 			return written, er
 		}
 	}
