@@ -24,6 +24,65 @@ import (
 var xMax, yMax float32
 var bt *widget.Button
 
+type TappableCircle struct {
+	widget.BaseWidget
+	Color color.Color
+	Cont  *fyne.Container
+}
+
+func NewTappableCircle(col color.Color, size fyne.Size, cont *fyne.Container) *TappableCircle {
+	c := &TappableCircle{Color: col, Cont: cont}
+	c.ExtendBaseWidget(c)
+	return c
+}
+
+func (c *TappableCircle) CreateRenderer() fyne.WidgetRenderer {
+	circ := canvas.NewCircle(c.Color)
+	// Größe des Kreises direkt setzen
+	size := c.BaseWidget.Size()
+	if size.IsZero() {
+		// Verwenden Sie eine Standardgröße, wenn die Größe nicht gesetzt wurde
+		size = fyne.NewSize(50, 50)
+	}
+	circ.Resize(size)
+	return &circleRenderer{circle: circ, objects: []fyne.CanvasObject{circ}, size: size} // Größe auch hier speichern
+}
+
+type circleRenderer struct {
+	circle  *canvas.Circle
+	objects []fyne.CanvasObject
+	size    fyne.Size // Speichern Sie die Größe hier
+}
+
+func (c *circleRenderer) Layout(size fyne.Size) {
+	c.circle.Resize(size)
+}
+
+func (c *circleRenderer) MinSize() fyne.Size {
+	return c.size
+}
+
+func (c *circleRenderer) Refresh() {
+	c.circle.FillColor = c.circle.FillColor
+	canvas.Refresh(c.circle)
+}
+
+func (c *circleRenderer) BackgroundColor() color.Color {
+	return color.Transparent
+}
+
+func (c *circleRenderer) Objects() []fyne.CanvasObject {
+	return c.objects
+}
+
+func (c *circleRenderer) Destroy() {}
+
+func (c *TappableCircle) Tapped(*fyne.PointEvent) {
+	c.Cont.Remove(c)
+}
+
+func (c *TappableCircle) TappedSecondary(*fyne.PointEvent) {}
+
 func checkWindowSize(w fyne.Window, c fyne.CanvasObject) {
 	for {
 		size := w.Canvas().Size()
@@ -59,8 +118,8 @@ func main() {
 	go checkWindowSize(w, gradient)
 
 	button := widget.NewButton("Spiral !", func() {
-		c := canvas.NewCircle(randomColor())
-		c.StrokeWidth = 2
+		c := NewTappableCircle(randomColor(), fyne.NewSize(rand.Float32()*50.0, rand.Float32()*50.0), cont)
+
 		c.Resize(fyne.NewSize(rand.Float32()*50.0, rand.Float32()*50.0))
 		cont.Add(c)
 
@@ -70,8 +129,8 @@ func main() {
 	})
 
 	buttonAngular := widget.NewButton("Angular !", func() {
-		c := canvas.NewCircle(randomColor())
-		c.StrokeWidth = 2
+		c := NewTappableCircle(randomColor(), fyne.NewSize(rand.Float32()*50.0, rand.Float32()*50.0), cont)
+
 		c.Resize(fyne.NewSize(rand.Float32()*50.0, rand.Float32()*50.0))
 		cont.Add(c)
 
@@ -130,7 +189,7 @@ func randomColor() color.Color {
 	}
 }
 
-func angularMotion(c *canvas.Circle, xStart, yStart, speed float64, w fyne.Window) {
+func angularMotion(c *TappableCircle, xStart, yStart, speed float64, w fyne.Window) {
 	winSize := w.Canvas().Size()
 	xMax, yMax := float64(winSize.Width), float64(winSize.Height)
 	speed *= 30.0
@@ -166,7 +225,7 @@ func angularMotion(c *canvas.Circle, xStart, yStart, speed float64, w fyne.Windo
 	}
 }
 
-func spiralMotion(c *canvas.Circle, xStart, yStart, speed float64, w fyne.Window) {
+func spiralMotion(c *TappableCircle, xStart, yStart, speed float64, w fyne.Window) {
 	winSize := w.Canvas().Size()
 	xMax = winSize.Width
 	yMax = winSize.Height
